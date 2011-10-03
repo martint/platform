@@ -15,6 +15,7 @@
  */
 package com.proofpoint.jmx;
 
+import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import com.proofpoint.log.Logger;
 
@@ -24,11 +25,18 @@ import javax.management.MBeanServer;
 import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
+import javax.management.remote.rmi.RMIConnectorServer;
+import javax.management.remote.rmi.RMIServerImpl;
 import java.io.IOException;
+import java.io.Serializable;
+import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.rmi.registry.LocateRegistry;
 import java.util.Collections;
+
+import static org.apache.commons.codec.binary.Base64.encodeBase64String;
+import static org.apache.commons.lang.SerializationUtils.serialize;
 
 public class JmxAgent
 {
@@ -39,6 +47,7 @@ public class JmxAgent
 
     private static Logger log = Logger.get(JmxAgent.class);
     private final JMXServiceURL url;
+    private volatile String directUrl;
 
     @Inject
     public JmxAgent(MBeanServer server, JmxConfig config)
@@ -82,6 +91,11 @@ public class JmxAgent
         return url;
     }
 
+    public String getDirectUrl()
+    {
+        return directUrl;
+    }
+
     @PostConstruct
     public void start()
             throws IOException
@@ -90,10 +104,15 @@ public class JmxAgent
         System.setProperty("java.rmi.server.hostname", host);
 
         LocateRegistry.createRegistry(registryPort);
-
         connectorServer.start();
 
+        RMIServerImpl rmiServer = extractRmiServer(connectorServer);
+
+        directUrl = String.format("service:jmx:rmi://%s:%d/stub/%s", host, serverPort, encodeBase64String(serialize((Serializable) rmiServer.toStub())));
+
         log.info("JMX Agent listening on %s:%s", host, registryPort);
+        log.info("JMX Agent listening on %s", connectorServer.getAddress());
+        log.info("JMX Agent listening on %s", directUrl);
     }
 
     @PreDestroy
@@ -101,5 +120,17 @@ public class JmxAgent
             throws IOException
     {
         connectorServer.stop();
+    }
+
+    private RMIServerImpl extractRmiServer(JMXConnectorServer server)
+    {
+        try {
+            final Field field = RMIConnectorServer.class.getDeclaredField("rmiServerImpl");
+            field.setAccessible(true);
+            return (RMIServerImpl) field.get(server);
+        }
+        catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
     }
 }
