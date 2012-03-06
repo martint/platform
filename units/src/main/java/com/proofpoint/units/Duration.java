@@ -55,6 +55,13 @@ public final class Duration implements Comparable<Duration>
         return convertTo(millis, timeUnit);
     }
 
+    public long convertToAndTruncate(TimeUnit unit)
+    {
+        Preconditions.checkNotNull(unit, "unit is null");
+
+        return (long) convertTo(millis, unit);
+    }
+
     private static double convertTo(double millis, TimeUnit timeUnit)
     {
         double conversionFactor = millisPerTimeUnit(timeUnit);

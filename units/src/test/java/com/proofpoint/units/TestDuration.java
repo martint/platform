@@ -56,6 +56,26 @@ public class TestDuration
     }
 
     @Test
+    public void testConverToAndTruncate()
+    {
+        long millis = 12346789;
+        Duration duration = new Duration(millis, MILLISECONDS);
+        Assert.assertEquals(duration.convertToAndTruncate(MILLISECONDS), millis);
+        Assert.assertEquals(duration.convertToAndTruncate(SECONDS), millis / 1000);
+        Assert.assertEquals(duration.convertToAndTruncate(MINUTES), millis / 1000 / 60);
+        Assert.assertEquals(duration.convertToAndTruncate(HOURS), millis / 1000 / 60 / 60);
+        Assert.assertEquals(duration.convertToAndTruncate(DAYS), millis / 1000 / 60 / 60 / 24);
+
+        long days = 3;
+        duration = new Duration(days, DAYS);
+        Assert.assertEquals(duration.convertToAndTruncate(DAYS), days);
+        Assert.assertEquals(duration.convertToAndTruncate(HOURS), days * 24);
+        Assert.assertEquals(duration.convertToAndTruncate(MINUTES), days * 24 * 60);
+        Assert.assertEquals(duration.convertToAndTruncate(SECONDS), days * 24 * 60 * 60);
+        Assert.assertEquals(duration.convertToAndTruncate(MILLISECONDS), days * 24 * 60 * 60 * 1000);
+    }
+
+    @Test
     public void testToString()
     {
         Assert.assertEquals(new Duration(2.125, MILLISECONDS).toString(), "2.13ms");
